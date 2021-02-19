@@ -1,28 +1,28 @@
 // Firebase App (the core Firebase SDK) is always required and must be listed first
 import firebase from "firebase/app";
-import 'firebase/firestore';
+import "firebase/firestore";
 import "firebase/auth";
-import "firebase/storage"
+import "firebase/storage";
 
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCMFsb4bukzRxo_GfHuPZlWU2v3oRKhIFM",
-  authDomain: "react-native-app-cda09.firebaseapp.com",
-  databaseURL: "https://react-native-app-cda09-default-rtdb.firebaseio.com",
-  projectId: "react-native-app-cda09",
-  storageBucket: "react-native-app-cda09.appspot.com",
-  messagingSenderId: "821459637103",
-  appId: "1:821459637103:web:2e0aaa55eb5ab90b528e9a",
-  measurementId: "G-YP2SK12CHN"
+var firebaseConfig = {
+  apiKey: "AIzaSyBhv6FLhdp-QIZ50XB-v6K7_RKkPegQrGg",
+  authDomain: "emi-next.firebaseapp.com",
+  databaseURL: "https://emi-next.firebaseio.com",
+  projectId: "emi-next",
+  storageBucket: "emi-next.appspot.com",
+  messagingSenderId: "366579965168",
+  appId: "1:366579965168:web:464b05310b411e3777b635",
+  measurementId: "G-ZXYNJSSZNS",
 };
-      // Initialize Firebase
-     
-     
-      firebase.initializeApp(firebaseConfig);
-     
-      // "[DEFAULT]"
-      export default firebase
-      
-      // Option 1: Access Firebase services via the defaultProject variable
-    
+// Initialize Firebase
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
+// "[DEFAULT]"
+
+export var auth = firebase.auth;
+export var storage = firebase.storage();
+export default firebase;
+
+// Option 1: Access Firebase services via the defaultProject variable

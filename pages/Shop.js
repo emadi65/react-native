@@ -30,20 +30,13 @@ export default function Shop({ navigation, route }) {
   const mref = useRef();
   const [data, setData] = useState();
   const [product, setProductName] = useState([]);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(true);
   const db = firebase.firestore();
   const dispatch = useDispatch();
   const getallProducts = fireActions.get_all_products(dispatch);
   const { allGotProducts, categorys, possible } = useSelector(
     (state) => state.auth
   );
-
-  useEffect(() => {
-    if (possible) {
-    }
-
-    setLoaded(true);
-  }, []);
 
   return (
     <View

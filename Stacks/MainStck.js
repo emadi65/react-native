@@ -12,6 +12,7 @@ import * as authActions from "../redux/actions/authActions";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import FilterScreen from "../pages/FilterScreen";
 import CategoryScreen from "../pages/CategoryScreen";
+import Messages from "../pages/userMessage/UserMessage";
 
 //create needed stacks
 const Stack = createStackNavigator();
@@ -82,6 +83,14 @@ function StackNav() {
       <Stack.Screen
         name="Profile"
         component={Profile}
+        options={{
+          headerShown: true,
+          headerTintColor: "#20b2aa",
+        }}
+      />
+      <Stack.Screen
+        name="Messages"
+        component={Messages}
         options={{
           headerShown: true,
           headerTintColor: "#20b2aa",

@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useSelector } from "react-redux";
 import { logOut } from "../redux/actions/authActions";
 import Setting from "../components/Setting";
+
 const Header = ({ navigation, logout }) => {
   const [userEmail, setUseremail] = useState(false);
   const { navigate } = useNavigation();

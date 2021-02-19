@@ -3,7 +3,13 @@ import {
   useRoute,
   useLinkProps,
 } from "@react-navigation/native";
-import React, { useEffect, useState, useRef, useLayoutEffect } from "react";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useLayoutEffect,
+  useCallback,
+} from "react";
 import { SafeAreaView } from "react-native";
 import { Button } from "react-native";
 import {
@@ -20,26 +26,13 @@ import {
 } from "react-native";
 import { Image } from "react-native-elements";
 import firebase from "../firebase";
+import useProduct from "./hooks/useProduct";
+import FastImage from "react-native-fast-image";
 
 const Item = ({ title, header, images, datee, price, id, description }) => {
   const imageref = useRef();
   const navigation = useNavigation();
   const router = useRoute();
-  const renderCarousel = (uri) => {
-    return (
-      <Image
-        resizeMode="contain"
-        source={Platform.OS === "ios" ? { uri: uri } : uri}
-        style={{
-          width: 900,
-          height: 950,
-
-          marginHorizontal: 7,
-          marginVertical: 4,
-          marginLeft: 12,
-        }}></Image>
-    );
-  };
 
   return (
     <View horizontal emi="emi" style={styles.item}>
@@ -51,18 +44,22 @@ const Item = ({ title, header, images, datee, price, id, description }) => {
             borderColor: "#2f4f4f",
             borderWidth: 3,
           }}>
-          {images.length > 1 ? (
-            images.map((uri, index) => (
+          {images?.map((uri, index) => {
+            return (
               <View
                 key={Math.random()}
                 style={{
                   display: "flex",
                   flex: 1,
                 }}>
-                <Image
+                <FastImage
                   resizeMethod="auto"
                   resizeMode="contain"
-                  source={Platform.OS === "ios" ? { uri: uri } : uri}
+                  source={
+                    Platform.OS === "ios"
+                      ? { uri: uri, cache: "force-cache" }
+                      : uri
+                  }
                   ref={imageref}
                   style={{
                     width: 300,
@@ -71,27 +68,10 @@ const Item = ({ title, header, images, datee, price, id, description }) => {
                     marginHorizontal: 7,
                     marginVertical: 4,
                     marginLeft: 12,
-                  }}></Image>
+                  }}></FastImage>
               </View>
-            ))
-          ) : (
-            <View
-              key={Math.random()}
-              style={{
-                flexDirection: "row",
-                display: "flex",
-              }}>
-              <Image
-                height={300}
-                width={300}
-                source={Platform.OS === "ios" ? { uri: images[0] } : images[0]}
-                style={{
-                  marginHorizontal: 7,
-                  marginVertical: 4,
-                  marginLeft: 22,
-                }}></Image>
-            </View>
-          )}
+            );
+          })}
         </ScrollView>
       </View>
 
@@ -109,41 +89,17 @@ const Profile = ({ navigation, route }) => {
   const router = useRoute();
   const navig = useNavigation();
   const [title, setTitle] = useState("");
+  const [products, setProductName] = useState([]);
+  const [query, setQuey] = useState();
+  const [gotProducts, setInput] = useProduct();
 
   useEffect(() => {
     if (route.params) {
-      getProducts(route.params?.header);
+      setQuey(route.params?.header);
       navig.setOptions({ title: route.params?.header });
+      setInput(route.params?.header);
     }
   }, []);
-
-  const [products, setProductName] = useState([]);
-  const collection = firebase.firestore().collection("products");
-  const ref = firebase.storage().ref().child(`image/mi.jpg`);
-
-  function getProducts(nn) {
-    collection.onSnapshot(
-      (querySnapshot) => {
-        const newEntities = [];
-        querySnapshot.forEach((doc) => {
-          const entity = doc.data();
-          entity.id = doc.id;
-          newEntities.push(entity);
-          const arr = [];
-          newEntities.map((res) => {
-            const ee = JSON.stringify(nn);
-            if (res.text.includes(nn)) {
-              arr.push(res);
-            }
-          });
-          setProductName(arr);
-        });
-      },
-      (error) => {
-        console.log(error);
-      }
-    );
-  }
 
   const renderItem = ({ item }) => (
     <Item
@@ -164,8 +120,8 @@ const Profile = ({ navigation, route }) => {
   return (
     <View>
       <FlatList
-        scrollEventThrottle="88"
-        data={products}
+        scrollEventThrottle={88}
+        data={gotProducts}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         style={{
@@ -210,11 +166,5 @@ const styles = StyleSheet.create({
     color: "white",
   },
 });
-const DissmissKeyboard = ({ children }) => {
-  return (
-    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-      {children}
-    </TouchableWithoutFeedback>
-  );
-};
+
 export default Profile;

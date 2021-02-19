@@ -1,13 +1,4 @@
-import React, {
-  useRef,
-  useEffect,
-  useState,
-  useMemo,
-  useReducer,
-  useContext,
-  useLayoutEffect,
-  useCallback,
-} from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Keyboard, ActivityIndicator } from "react-native";
 import {
   View,
@@ -19,23 +10,18 @@ import {
   Dimensions,
   Button,
 } from "react-native";
-
 import firebase from "../firebase";
 import Icon from "react-native-vector-icons/AntDesign";
 import { TextInput, TouchableOpacity } from "react-native-gesture-handler";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import {
-  FireActions,
-  setCategorys,
-  get_all_products,
-  setSellItem,
-} from "../redux/actions/FireActions";
+import { get_all_products } from "../redux/actions/FireActions";
 import { useDispatch, useSelector } from "react-redux";
 import * as authActions from "../redux/actions/authActions";
 import isEmpty from "is-empty";
-import { Filter } from "../components/Filter";
+import { Filter } from "../components/filters/Filter";
 import { SafeAreaView } from "react-native";
 import Lottie from "lottie-react-native";
+import CachedImage from "react-native-expo-cached-image";
 
 const Item = ({ title, header, datee, price, images }) => {
   const dispatch = useDispatch();
@@ -47,7 +33,7 @@ const Item = ({ title, header, datee, price, images }) => {
   const route = useRoute();
 
   return (
-    <View emi="emi" style={styles.item}>
+    <ScrollView emi="emi" style={styles.item} scrollEventThrottle={80}>
       {title ? (
         <TouchableOpacity
           style={{ flexDirection: "row" }}
@@ -58,10 +44,17 @@ const Item = ({ title, header, datee, price, images }) => {
             });
           }}>
           {images ? (
-            <Image
+            <CachedImage
               ref={imageref}
-              source={Platform.OS === "ios" ? { uri: images[0] } : images[0]}
-              style={styles.imageRef}></Image>
+              height={300}
+              width={300}
+              resizeMode="cover"
+              importantForAccessibility="auto"
+              loadingIndicatorSource={require("../assets/favicon.png")}
+              resizeMethod="auto"
+              defaultSource={require("../assets/favicon.png")}
+              source={(images[0], { uri: images[0], cache: "reload" })}
+              style={styles.imageRef}></CachedImage>
           ) : null}
 
           <View style={{ marginLeft: 22 }}>
@@ -84,7 +77,7 @@ const Item = ({ title, header, datee, price, images }) => {
           <ActivityIndicator size="large" color="#00ff00" />
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 };
 
@@ -111,6 +104,7 @@ export default function Search() {
 
   useEffect(() => {
     SolveProduct(input);
+    console.log(categoryObj);
   }, [categoryObj]);
 
   useEffect(() => {
@@ -134,57 +128,61 @@ export default function Search() {
   );
 
   async function SolveProduct(input_text) {
-    const collection = await firebase.firestore().collection("products");
-    if (categoryObj) {
-      collection.onSnapshot(
-        (querySnapshot) => {
-          const newEntities = [];
+    try {
+      const collection = firebase.firestore().collection("products");
+      if (categoryObj) {
+        collection.onSnapshot(
+          (querySnapshot) => {
+            const newEntities = [];
 
-          querySnapshot.forEach((doc) => {
-            const entity = doc.data();
-            entity.id = doc.id;
-            newEntities.push(entity);
-          });
+            querySnapshot.forEach((doc) => {
+              const entity = doc.data();
+              entity.id = doc.id;
+              newEntities.push(entity);
+            });
 
-          const my = newEntities.filter((value) => {
-            return value.category?.includes(categoryObj);
-          });
+            const my = newEntities.filter((value) => {
+              return value.category?.includes(categoryObj);
+            });
 
-          const data = [];
-          my.map((res) => {
-            if (res.text?.includes(input_text)) {
-              data.push(res);
-            }
-          });
-          setProductName(data);
-        },
-        (error) => {
-          console.log(error);
-        }
-      );
-    } else {
-      collection.onSnapshot(
-        (querySnapshot) => {
-          const newEntities = [];
+            const data = [];
+            my.map((res) => {
+              if (res.text?.includes(input_text)) {
+                data.push(res);
+              }
+            });
+            setProductName(data);
+          },
+          (error) => {
+            console.log(error);
+          }
+        );
+      } else {
+        collection.onSnapshot(
+          (querySnapshot) => {
+            const newEntities = [];
 
-          querySnapshot.forEach((doc) => {
-            const entity = doc.data();
-            entity.id = doc.id;
-            newEntities.push(entity);
-          });
-          const data = [];
-          newEntities.map((res) => {
-            if (res.text?.includes(input_text)) {
-              data.push(res);
-            }
-          });
-          setProductName(data);
-          setLoaded(true);
-        },
-        (error) => {
-          console.log(error);
-        }
-      );
+            querySnapshot.forEach((doc) => {
+              const entity = doc.data();
+              entity.id = doc.id;
+              newEntities.push(entity);
+            });
+            const data = [];
+            newEntities.map((res) => {
+              if (res.text?.includes(input_text)) {
+                data.push(res);
+              }
+            });
+            setProductName(data);
+            setLoaded(true);
+          },
+          (error) => {
+            console.log(error);
+          }
+        );
+      }
+    } catch (err) {
+      return err;
     }
   }
   return (
@@ -215,7 +213,6 @@ export default function Search() {
             onScrollBeginDrag={() => {
               Keyboard.dismiss();
             }}
-            
             ref={flatListRef}
             data={isEmpty(input) ? null : products}
             renderItem={(item) => (
@@ -260,13 +257,12 @@ export default function Search() {
             }}
           />
         </View>
-        <SafeAreaView>
-          <Filter
-            setFilterCount={setFilterCount}
-            filterCount={filterCount}
-            setCategory={setCategoryObj}
-          />
-        </SafeAreaView>
+
+        <Filter
+          setFilterCount={setFilterCount}
+          filterCount={filterCount}
+          setCategory={setCategoryObj}
+        />
       </View>
       {loaded ? (
         <FlatList

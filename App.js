@@ -33,7 +33,7 @@ export default function App() {
       }
     });
   }, []);
-
+  //show animation before app start
   return (
     <Provider store={store}>
       {!loading ? (

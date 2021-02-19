@@ -16,8 +16,8 @@ export function get_all_products(dispatch) {
             newEntities.push(entity);
           });
 
-          const my = newEntities.filter(
-            (value) => value.category?.includes(categoryy)
+          const my = newEntities.filter((value) =>
+            value.category?.includes(categoryy)
           );
           const data = [];
           my.map((res) => {
@@ -177,7 +177,7 @@ export async function setSellItem(
   user
 ) {
   try {
-    if (text && tag.length > 0) {
+    if (text) {
       const collection = await firebase.firestore().collection("products");
       const timestamp = firebase.firestore.FieldValue.serverTimestamp();
       const data = {
@@ -190,7 +190,7 @@ export async function setSellItem(
         price,
         user: user?.email,
       };
-      const _doc = await collection.add(data);
+      collection.add(data);
     }
   } catch (err) {
     console.log("error happend");
@@ -210,7 +210,7 @@ export async function getUserPage(user) {
         images,
         price,
       };
-      const _doc = await collection.add(data);
+      collection.add(data);
     }
   } catch (err) {
     console.log("error happend");

@@ -32,6 +32,8 @@ import isEmpty from "is-empty";
 import * as fireActions from "../redux/actions/FireActions";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
+import * as ImageManipulator from "expo-image-manipulator";
+import { firestore } from "firebase";
 
 export default function Sell({ navigation }) {
   const textRef = useRef(null);
@@ -46,11 +48,14 @@ export default function Sell({ navigation }) {
   const [isSubmited, setIsSubmited] = useState(false);
   const [hasPermission, setHasPermission] = useState(null);
   const { navigate, addListener } = useNavigation();
-  const [image, setImage] = useState();
+  const [gotUrl, setGotUrl] = useState();
+  const [image, setImage] = useState(null);
   const { user } = useSelector((state) => state.auth);
   const [blob, setBlob] = useState();
-
+  const [imageUrls, setImagesUrls] = useState(["ss", "ww", "ss"]);
+  const [transferred, setTransferred] = useState(0);
   //get permission for camera and albums in begining
+
   useLayoutEffect(() => {
     (async () => {
       if (Platform.OS !== "web") {
@@ -66,21 +71,27 @@ export default function Sell({ navigation }) {
       const { status } = await Camera.requestPermissionsAsync();
       setHasPermission(status === "granted");
     })();
-    // ref.getDownloadURL().then(res=>res && axios.get(res).then(res=>setUploadUri(res.data)))
+
     setIsSubmited(false);
   }, []);
 
   //open image library on upload image button
   async function getImageLibrary() {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-    if (!result.cancelled) {
-      setUploadUri([...uploadUri, result.uri]);
-      setImage(result);
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0,
+      });
+
+      if (!result.cancelled) {
+        setGotUrl(result.uri);
+        setUploadUri([...uploadUri, result.uri]);
+        uploadToFirebase(result.uri);
+      }
+    } catch (err) {
+      return err;
     }
   }
 
@@ -96,65 +107,89 @@ export default function Sell({ navigation }) {
     if (!result.cancelled) {
       setUploadUri([...uploadUri, result.uri]);
     }
-    setImage(result.uri);
-  }
-
-  //create blob for sending to firebase database
-  async function getBlob() {
-    const rr = image;
-    const obj = { hello: "world" };
-    const blob = new Blob([JSON.stringify(obj, null, 2)], {
-      type: "application/json",
-    });
-    setBlob(blob);
   }
 
   //upload to firebase
-  const uploadToFirebase = async () => {
-    const { uri } = image;
-    const filename = uri.substring(uri.lastIndexOf("/") + 1);
-    const uploadUri = Platform.OS === "ios" ? uri.replace("file://", "") : uri;
-    setUploading(true);
-    setTransferred(0);
-    const task = firebase.storage().ref(filename).putFile(uploadUri);
-    // set progress state
-    task.on("state_changed", (snapshot) => {
-      setTransferred(
-        Math.round(snapshot.bytesTransferred / snapshot.totalBytes) * 10000
-      );
-    });
-    try {
-      await task;
-    } catch (e) {
-      console.error(e);
-    }
-    setUploading(false);
-    Alert.alert(
-      "Photo uploaded!",
-      "Your photo has been uploaded to Firebase Cloud Storage!"
+  const uploadToFirebase = async (uri) => {
+    const manipResult = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ rotate: 0 }, { resize: { height: 300, width: 300 } }],
+      { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
     );
+
+    const blob = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = function () {
+        resolve(xhr.response);
+      };
+      xhr.onerror = function (e) {
+        console.log(e);
+        reject(new TypeError("Network request failed"));
+      };
+      xhr.responseType = "blob";
+      xhr.open("GET", manipResult.uri, true);
+      xhr.send(null);
+    });
+    console.log("blob", blob);
+    const filename = manipResult.uri.substring(
+      manipResult.uri.lastIndexOf("/") + 1
+    );
+    setTransferred(0);
+    const metadata = {
+      contentType: "image/jpeg",
+      cacheControl: "public,max-age=300",
+      size: 20,
+    };
+
+    const ref = await firebase.storage().ref(`images/${filename}`);
+
+    await ref.put(blob, metadata);
+
+    const gotUrl = await firebase
+      .storage()
+      .ref()
+      .child(`images/${filename}`)
+      .getDownloadURL();
+
+    var xhr = new XMLHttpRequest();
+    xhr.responseType = "blob";
+    xhr.onload = (event) => {
+      var blob = xhr.response;
+    };
+    const Urls = ["wssd", "ee", "ww"];
+    xhr.open("GET", gotUrl);
+    xhr.send();
+    Urls.splice(0, 1, gotUrl);
+    imageUrls.pop();
+    setImagesUrls([gotUrl, ...imageUrls]);
+
     setImage(null);
   };
 
-  function set_On_Db() {
-    fireActions.setSellItem(
-      category,
-      productName,
-      productTag,
-      description,
-      uploadUri,
-      price,
-      user
-    );
+  async function set_On_Db() {
+    try {
+      const collection = firebase.firestore().collection("products");
+      const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+      if (imageUrls[0]) {
+        await collection.add({
+          text: productName,
+          tag: productTag,
+          createdAt: timestamp,
+          price,
+          description,
+          category: "",
+          user: "",
+          images: imageUrls,
+        });
+      }
+    } catch (err) {
+      return err;
+    } finally {
+      setUploadUri([]);
 
-    uploadToFirebase(blob);
-    setUploadUri([]);
-
-    setIsSubmited(true);
-    setTimeout(() => {
-      navigate("Sell");
+      navigate("Home");
       setIsSubmited(false);
-    }, 1000);
+    }
   }
 
   if (hasPermission === null) {
@@ -234,7 +269,7 @@ export default function Sell({ navigation }) {
 
               <View>
                 <ScrollView style={{ flexDirection: "row" }} horizontal>
-                  <ImageView uploadUri={uploadUri} />
+                  <ImageView uploadUri={uploadUri} imageUrls={imageUrls} />
                 </ScrollView>
 
                 <TouchableOpacity
@@ -255,25 +290,57 @@ export default function Sell({ navigation }) {
 }
 
 //screen uploaded image to user for confirmation befor uploadin
-const ImageView = ({ uploadUri }) => {
+const ImageView = ({ uploadUri, imageUrls }) => {
+  const [isLoaded, setLoad] = useState(true);
   return (
-    <>
-      {uploadUri
-        ? uploadUri.map((res) => {
-            return (
+    <View
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        width: 400,
+        paddingHorizontal: 22,
+        marginTop: 12,
+      }}>
+      {imageUrls?.map((res) => {
+        return (
+          <View
+            key={Math.random()}
+            style={{
+              height: 100,
+              width: 100,
+              borderColor: "black",
+              borderWidth: 6,
+              marginHorizontal: 10,
+            }}>
+            {res?.length > 5 ? (
               <Image
-                key={Math.random()}
-                source={Platform.OS === "ios" ? { uri: res } : res}
+                loadingIndicatorSource={require("../assets/favicon.png")}
+                defaultSource={require("../assets/aaa.jpg")}
+                onLoadStart={() => setLoad(false)}
+                source={
+                  res?.length > 5
+                    ? Platform.OS === "ios"
+                      ? { uri: res }
+                      : res
+                    : require("../assets/favicon.png")
+                }
                 style={styles.image_view}></Image>
-            );
-          })
-        : uploadUri.map((res) => (
-            <Icon
-              key={Math.random()}
-              style={{ paddingHorizontal: 33 }}
-              name="feather"></Icon>
-          ))}
-    </>
+            ) : (
+              <Image
+                loadingIndicatorSource={require("../assets/favicon.png")}
+                defaultSource={require("../assets/aaa.jpg")}
+                onLoadStart={() => setLoad(false)}
+                source={require("../assets/favicon.png")}
+                style={{
+                  height: 50,
+                  width: 50,
+                  alignSelf: "center",
+                }}></Image>
+            )}
+          </View>
+        );
+      })}
+    </View>
   );
 };
 
@@ -309,8 +376,7 @@ const styles = StyleSheet.create({
   image_view: {
     width: 100,
     height: 100,
-    marginTop: 14,
-    marginHorizontal: 9,
+    alignSelf: "center",
     borderRadius: 9,
     borderColor: "black",
     borderWidth: 3,
